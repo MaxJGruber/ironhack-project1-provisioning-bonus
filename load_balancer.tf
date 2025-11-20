@@ -3,52 +3,47 @@
 ########################################
 resource "aws_lb" "app_lb" {
   name               = "app-lb"
+  internal           = false
   load_balancer_type = "application"
-  subnets            = [aws_subnet.private_subnet_a.id, aws_subnet.private_subnet_a_2.id]
+  subnets            = aws_subnet.public[*].id
   security_groups    = [aws_security_group.alb_sg.id]
-
   tags = {
     Name = "app-lb"
   }
 }
 
-resource "aws_lb_target_group" "vote_tg" {
-  name        = "vote-tg"
-  port        = 80
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main_vpc.id
-  target_type = "instance"
+resource "aws_lb_target_group" "frontend_80" {
+  name     = "frontend-80"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main_vpc.id
 
   health_check {
     path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200-399"
     interval            = 30
     timeout             = 5
-    healthy_threshold   = 3
+    healthy_threshold   = 2
     unhealthy_threshold = 2
+    matcher             = "200"
   }
-
   tags = {
     Name = "vote-tg"
   }
 }
 
-resource "aws_lb_target_group" "result_tg" {
-  name        = "result-tg"
-  port        = 80
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main_vpc.id
-  target_type = "instance"
+resource "aws_lb_target_group" "frontend_81" {
+  name     = "frontend-81"
+  port     = 81
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main_vpc.id
 
   health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200-399"
+    path                = "/result"
     interval            = 30
     timeout             = 5
-    healthy_threshold   = 3
+    healthy_threshold   = 2
     unhealthy_threshold = 2
+    matcher             = "200"
   }
 
   tags = {
@@ -63,61 +58,48 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "NOT FOUND"
-      status_code  = 404
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend_80.arn
   }
 }
 
-resource "aws_lb_listener_rule" "vote_rule" {
+resource "aws_lb_listener_rule" "result_path" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 10
+  priority     = 100
+
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.vote_tg.arn
+    target_group_arn = aws_lb_target_group.frontend_81.arn
   }
+
   condition {
     path_pattern {
-      values = ["/vote"]
+      values = ["/result", "/result/*"]
     }
   }
 }
 
-resource "aws_lb_listener_rule" "result_rule" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 20
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.result_tg.arn
-  }
-  condition {
-    path_pattern {
-      values = ["/result"]
-    }
-  }
-}
-
-
-# Register EC2 Instances
-resource "aws_lb_target_group_attachment" "tg_attachment_vote" {
-  target_group_arn = aws_lb_target_group.vote_tg.arn
-  target_id        = aws_instance.instance-a-frontend.id
+# Target group attachments
+resource "aws_lb_target_group_attachment" "frontend_1_80" {
+  target_group_arn = aws_lb_target_group.frontend_80.arn
+  target_id        = aws_instance.frontend_1.id
   port             = 80
 }
 
-resource "aws_lb_target_group_attachment" "tg_attachment_result" {
-  target_group_arn = aws_lb_target_group.result_tg.arn
-#   target_id        = aws_instance.instance-a-frontend.id
+resource "aws_lb_target_group_attachment" "frontend_2_80" {
+  target_group_arn = aws_lb_target_group.frontend_80.arn
+  target_id        = aws_instance.frontend_2.id
   port             = 80
 }
 
-########################################
-# Output
-########################################
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = aws_lb.app_lb.dns_name
+resource "aws_lb_target_group_attachment" "frontend_1_81" {
+  target_group_arn = aws_lb_target_group.frontend_81.arn
+  target_id        = aws_instance.frontend_1.id
+  port             = 81
+}
+
+resource "aws_lb_target_group_attachment" "frontend_2_81" {
+  target_group_arn = aws_lb_target_group.frontend_81.arn
+  target_id        = aws_instance.frontend_2.id
+  port             = 81
 }

@@ -1,0 +1,23 @@
+- name: Deploy vote and result
+  hosts: frontend
+  become: yes
+  tasks:
+    - name: Run vote container
+      community.docker.docker_container:
+        name: vote
+        image: chojiu/vote-project-1:latest
+        ports: ["80:80"]
+        env:
+          REDIS_HOST: "backend.internal" # internal DNS or private IP
+
+    - name: Run result container
+      community.docker.docker_container:
+        name: result
+        image: chojiu/result-project-1:latest
+        ports: ["81:80"]
+        env:
+          PG_HOST: "db.internal"
+          PG_PORT: "5432"
+          PG_USER: "postgres"
+          PG_PASSWORD: "postgres"
+          PG_DATABASE: "postgres"

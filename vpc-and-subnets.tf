@@ -1,8 +1,10 @@
+data "aws_availability_zones" "available" {}
+
 ########################################
 # VPC
 ########################################
 resource "aws_vpc" "main_vpc" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -23,6 +25,29 @@ resource "aws_internet_gateway" "igw" {
 }
 
 ########################################
+# Subnets
+########################################
+
+# Public
+resource "aws_subnet" "public" {
+  count                   = length(var.public_subnet_cidrs)
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = var.public_subnet_cidrs[count.index]
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true # Required for NAT Gateway / public hosts
+  tags                    = { Name = "public-${count.index}" }
+}
+
+# Private
+resource "aws_subnet" "private" {
+  count             = length(var.private_subnet_cidrs)
+  vpc_id            = aws_vpc.main_vpc.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+  tags              = { Name = "private-${count.index}" }
+}
+
+########################################
 # NAT Gateway
 ########################################
 resource "aws_eip" "nat_eip" {
@@ -30,44 +55,8 @@ resource "aws_eip" "nat_eip" {
 }
 resource "aws_nat_gateway" "ngw" {
   allocation_id = aws_eip.nat_eip.id
-  subnet_id     = aws_subnet.public_subnet.id
+  subnet_id     = aws_subnet.public[0].id
   tags = {
     Name = "main-ngw"
-  }
-}
-
-########################################
-# Subnets
-########################################
-
-# Public
-resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.main_vpc.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-north-1a"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "public-subnet"
-  }
-}
-
-# Private
-resource "aws_subnet" "private_subnet_a" {
-  vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = "10.0.2.0/24"
-  availability_zone = "eu-north-1b"
-
-  tags = {
-    Name = "private-subnet-a"
-  }
-}
-
-resource "aws_subnet" "private_subnet_b" {
-  vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = "10.0.3.0/24"
-  availability_zone = "eu-north-1c"
-
-  tags = {
-    Name = "private-subnet-b"
   }
 }

@@ -1,0 +1,13 @@
+- name: Deploy PostgreSQL
+  hosts: db
+  become: yes
+  tasks:
+    - name: Run postgres container
+      community.docker.docker_container:
+        name: postgres
+        image: postgres
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_USER: "postgres"
+          POSTGRES_PASSWORD: "postgres"
+          POSTGRES_DB: "postgres"

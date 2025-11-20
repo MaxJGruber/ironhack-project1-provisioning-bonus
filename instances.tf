@@ -1,30 +1,56 @@
-resource "aws_instance" "instance-a-frontend" {
-  ami                         = var.ami
-  instance_type               = "t3.micro"
-  key_name                    = var.key_pair_name
-  subnet_id                   = aws_subnet.public_subnet.id
-  associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.frontend_sg.id]
+resource "aws_instance" "frontend_1" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.private[0].id
+  vpc_security_group_ids = [aws_security_group.frontend_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
 
-  tags = { Name = "instance-a-frontend" }
+  user_data = <<-EOF
+              #!/bin/bash
+              snap install amazon-ssm-agent --classic
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
+
+  tags = {
+    Name = "frontend-1"
+  }
 }
 
-resource "aws_instance" "instance-b-backend" {
-  ami                    = var.ami
-  instance_type          = "t3.micro"
-  key_name               = var.key_pair_name
-  subnet_id              = aws_subnet.private_subnet_a.id
+resource "aws_instance" "frontend_2" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.private[1].id
+  vpc_security_group_ids = [aws_security_group.frontend_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
+
+  user_data = <<-EOF
+              #!/bin/bash
+              snap install amazon-ssm-agent --classic
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
+
+  tags = {
+    Name = "frontend-2"
+  }
+}
+
+resource "aws_instance" "backend" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.private[0].id
   vpc_security_group_ids = [aws_security_group.backend_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
 
-  tags = { Name = "instance-b-backend" }
-}
+  user_data = <<-EOF
+              #!/bin/bash
+              snap install amazon-ssm-agent --classic
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
 
-resource "aws_instance" "instance-c-db" {
-  ami                    = var.ami
-  instance_type          = "t3.micro"
-  key_name               = var.key_pair_name
-  subnet_id              = aws_subnet.private_subnet_b.id
-  vpc_security_group_ids = [aws_security_group.db_sg.id]
-
-  tags = { Name = "instance-c-db" }
+  tags = {
+    Name = "backend"
+  }
 }
