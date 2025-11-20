@@ -1,0 +1,36 @@
+---
+- name: Configure instances
+  hosts: all
+  become: yes
+  vars:
+    username: "pokfinner"
+    image_map:
+      frontend-instance-1: "vote"
+      backend-instance-1: "result"
+      db-instance-1: "worker"
+    # username: "kabamaru2372"
+    # image_map:
+    #   frontend-instance-1: "voting-app"
+    #   backend-instance-1: "result-app"
+    #   db-instance-1: "worker-app"
+  tasks:
+    - name: Update apt package index
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Docker if not present
+      ansible.builtin.package:
+        name: docker.io
+        state: present
+
+
+    - name: Pull the designated Docker image for this host
+      community.docker.docker_image:
+        name: "{{ username }}/{{ image_map[inventory_hostname] }}"
+        source: pull
+        tag: latest
+      when: image_map[inventory_hostname] is defined
+      # ansible.builtin.shell: |
+      #   docker pull --platform=linux/amd64 {{ username }}/{{ image_map[inventory_hostname] }}"
+      #   docker run -d {{ username }}/{{ image_map[inventory_hostname] }}"
+
